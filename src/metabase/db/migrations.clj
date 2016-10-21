@@ -1,5 +1,11 @@
 (ns metabase.db.migrations
-  "Clojure-land data migration definitions and fns for running them."
+  "Clojure-land data migration definitions and fns for running them.
+   These migrations are all ran once when Metabase is first launched, except when transferring data from an existing H2 database.
+   When data is transferred from an H2 database, migrations will already have been ran against that data; thus, all of these migrations
+   need to be repeatable, e.g.:
+
+     CREATE TABLE IF NOT EXISTS ... -- Good
+     CREATE TABLE ...               -- Bad"
   (:require [clojure.string :as s]
             [clojure.tools.logging :as log]
             (metabase [config :as config]
@@ -205,13 +211,15 @@
         {admin-group-id :id}     (perm-group/admin)]
     (binding [perm-membership/*allow-changing-all-users-group-members* true]
       (doseq [{user-id :id, superuser? :is_superuser} (db/select [User :id :is_superuser])]
-        (db/insert! PermissionsGroupMembership
-          :user_id  user-id
-          :group_id all-users-group-id)
-        (when superuser?
+        (u/ignore-exceptions
           (db/insert! PermissionsGroupMembership
             :user_id  user-id
-            :group_id admin-group-id))))))
+            :group_id all-users-group-id))
+        (when superuser?
+          (u/ignore-exceptions
+            (db/insert! PermissionsGroupMembership
+              :user_id  user-id
+              :group_id admin-group-id)))))))
 
 ;; admin group has a single entry that lets it access to everything
 (defmigration ^{:author "camsaul", :added "0.20.0"} add-admin-group-root-entry
@@ -239,24 +247,24 @@
 ;;; +------------------------------------------------------------------------------------------------------------------------+
 
 (def ^:private ^:const old-special-type->new-type
-    {"avatar"                 "type/AvatarURL"
-     "category"               "type/Category"
-     "city"                   "type/City"
-     "country"                "type/Country"
-     "desc"                   "type/Description"
-     "fk"                     "type/FK"
-     "id"                     "type/PK"
-     "image"                  "type/ImageURL"
-     "json"                   "type/SerializedJSON"
-     "latitude"               "type/Latitude"
-     "longitude"              "type/Longitude"
-     "name"                   "type/Name"
-     "number"                 "type/Number"
-     "state"                  "type/State"
-     "timestamp_milliseconds" "type/UNIXTimestampMilliseconds"
-     "timestamp_seconds"      "type/UNIXTimestampSeconds"
-     "url"                    "type/URL"
-     "zip_code"               "type/ZipCode"})
+  {"avatar"                 "type/AvatarURL"
+   "category"               "type/Category"
+   "city"                   "type/City"
+   "country"                "type/Country"
+   "desc"                   "type/Description"
+   "fk"                     "type/FK"
+   "id"                     "type/PK"
+   "image"                  "type/ImageURL"
+   "json"                   "type/SerializedJSON"
+   "latitude"               "type/Latitude"
+   "longitude"              "type/Longitude"
+   "name"                   "type/Name"
+   "number"                 "type/Number"
+   "state"                  "type/State"
+   "timestamp_milliseconds" "type/UNIXTimestampMilliseconds"
+   "timestamp_seconds"      "type/UNIXTimestampSeconds"
+   "url"                    "type/URL"
+   "zip_code"               "type/ZipCode"})
 
 ;; make sure the new types are all valid
 (when-not config/is-prod?
@@ -289,22 +297,22 @@
 (defmigration ^{:author "camsaul", :added "0.20.0"} migrate-field-types
   (doseq [[old-type new-type] old-special-type->new-type]
     ;; migrate things like :timestamp_milliseconds -> :type/UNIXTimestampMilliseconds
-    (db/update-where! 'Field {:%lower.special_type (s/lower-case old-type)}
+    (db/update-where! Field {:%lower.special_type (s/lower-case old-type)}
       :special_type new-type)
     ;; migrate things like :UNIXTimestampMilliseconds -> :type/UNIXTimestampMilliseconds
-    (db/update-where! 'Field {:special_type (name (keyword new-type))}
+    (db/update-where! Field {:special_type (name (keyword new-type))}
       :special_type new-type))
   (doseq [[old-type new-type] old-base-type->new-type]
     ;; migrate things like :DateTimeField -> :type/DateTime
-    (db/update-where! 'Field {:%lower.base_type (s/lower-case old-type)}
+    (db/update-where! Field {:%lower.base_type (s/lower-case old-type)}
       :base_type new-type)
     ;; migrate things like :DateTime -> :type/DateTime
-    (db/update-where! 'Field {:base_type (name (keyword new-type))}
+    (db/update-where! Field {:base_type (name (keyword new-type))}
       :base_type new-type)))
 
 ;; if there were invalid field types in the database anywhere fix those so the new stricter validation logic doesn't blow up
 (defmigration ^{:author "camsaul", :added "0.20.0"} fix-invalid-field-types
-  (db/update-where! 'Field {:base_type [:not-like "type/%"]}
+  (db/update-where! Field {:base_type [:not-like "type/%"]}
     :base_type "type/*")
-  (db/update-where! 'Field {:special_type [:not-like "type/%"]}
+  (db/update-where! Field {:special_type [:not-like "type/%"]}
     :special_type nil))
