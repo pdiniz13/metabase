@@ -13,7 +13,7 @@ RUN apk add --update java-cacerts && \
     rm -rf /tmp/* /var/cache/apk/*
 
 # add Metabase jar
-COPY ./metabase.jar /app/
+#COPY ./metabase.jar /app/
 
 # add our run script to the image
 COPY ./run_metabase.sh /app/

@@ -5,7 +5,7 @@ set -eu
 BASEDIR=$(dirname $0)
 PROJECT_ROOT="$BASEDIR/../.."
 
-DOCKERHUB_NAMESPACE=metabase
+DOCKERHUB_NAMESPACE=hellotech
 
 
 BUILD_TYPE=$1
@@ -20,18 +20,18 @@ if [ -z $MB_TAG ]; then
     exit 1
 fi
 
-if [ "$3" == "--publish" ]; then
-    PUBLISH="YES"
-fi
-
-if [ "$4" == "--latest" ]; then
-    LATEST="YES"
-fi
-
-if [ "$PUBLISH" == "YES" ] && [ -z "$DOCKERHUB_USERNAME" -o -z "$DOCKERHUB_PASSWORD" ]; then
-    echo "In order to publish an image to Dockerhub you must set \$DOCKERHUB_USERNAME and \$DOCKERHUB_PASSWORD before running."
-    exit 1
-fi
+#if [ "$3" == "--publish" ]; then
+#    PUBLISH="YES"
+#fi
+#
+#if [ "$4" == "--latest" ]; then
+#    LATEST="YES"
+#fi
+#
+#if [ "$PUBLISH" == "YES" ] && [ -z "$DOCKERHUB_USERNAME" -o -z "$DOCKERHUB_PASSWORD" ]; then
+#    echo "In order to publish an image to Dockerhub you must set \$DOCKERHUB_USERNAME and \$DOCKERHUB_PASSWORD before running."
+#    exit 1
+#fi
 
 # TODO: verify we have access to docker cmd and minimum version?
 
@@ -75,27 +75,27 @@ docker build -t ${DOCKER_IMAGE} $BASEDIR
 # TODO: validate our built docker image
 
 
-if [ "$PUBLISH" == "YES" ]; then
-    echo "Publishing image ${DOCKER_IMAGE} to Dockerhub"
-
-    # make sure that we are logged into dockerhub
-    docker login --username="${DOCKERHUB_USERNAME}" --password="${DOCKERHUB_PASSWORD}"
-
-    # push the built image to dockerhub
-    docker push ${DOCKER_IMAGE}
-
-    # TODO: quick check against dockerhub to see that our new image made it
-
-    if [ "$LATEST" == "YES" ]; then
-        # tag our recent versioned image as "latest"
-        docker tag -f ${DOCKER_IMAGE} ${DOCKERHUB_NAMESPACE}/${DOCKERHUB_REPOSITORY}:latest
-
-        # then push it as well
-        docker push ${DOCKERHUB_NAMESPACE}/${DOCKERHUB_REPOSITORY}:latest
-
-        # TODO: validate push succeeded
-    fi
-fi
+#if [ "$PUBLISH" == "YES" ]; then
+#    echo "Publishing image ${DOCKER_IMAGE} to Dockerhub"
+#
+#    # make sure that we are logged into dockerhub
+#    docker login --username="${DOCKERHUB_USERNAME}" --password="${DOCKERHUB_PASSWORD}"
+#
+#    # push the built image to dockerhub
+#    docker push ${DOCKER_IMAGE}
+#
+#    # TODO: quick check against dockerhub to see that our new image made it
+#
+#    if [ "$LATEST" == "YES" ]; then
+#        # tag our recent versioned image as "latest"
+#        docker tag -f ${DOCKER_IMAGE} ${DOCKERHUB_NAMESPACE}/${DOCKERHUB_REPOSITORY}:latest
+#
+#        # then push it as well
+#        docker push ${DOCKERHUB_NAMESPACE}/${DOCKERHUB_REPOSITORY}:latest
+#
+#        # TODO: validate push succeeded
+#    fi
+#fi
 
 # TODO: cleanup after ourselves and remove the Metabase binary we downloaded
 rm -f ${BASEDIR}/metabase.jar

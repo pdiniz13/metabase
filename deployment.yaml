@@ -1,0 +1,78 @@
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: "metabase-config"
+  namespace: "default"
+  labels:
+    app: "metabase"
+data:
+  MB_DB_TYPE: "postgres"
+  JAVA_TIMEZONE: "US/Pacific"
+  MB_DB_CONNECTION_URI: "postgres://10.108.97.3:5432/metabase?user=hellotech&password=BigMonday2015&ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory"
+---
+apiVersion: "extensions/v1beta1"
+kind: "Deployment"
+metadata:
+  name: "metabase"
+  namespace: "default"
+  labels:
+    app: "metabase"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "metabase"
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: "metabase"
+    spec:
+      volumes:
+        - name: metabase-persistent-storage
+          persistentVolumeClaim:
+            claimName: metabase-volumeclaim
+      containers:
+        - name: "metabase"
+          image: metabase/metabase:v0.25.2
+          resources:
+            requests:
+              memory: "10G"
+              cpu: "3"
+          volumeMounts:
+            - name: metabase-persistent-storage
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            failureThreshold: 10
+          env:
+            - name: "MB_DB_TYPE"
+              valueFrom:
+                configMapKeyRef:
+                  key: "MB_DB_TYPE"
+                  name: "metabase-config"
+            - name: "JAVA_TIMEZONE"
+              valueFrom:
+                configMapKeyRef:
+                  key: "JAVA_TIMEZONE"
+                  name: "metabase-config"
+            - name: "MB_DB_CONNECTION_URI"
+              valueFrom:
+                configMapKeyRef:
+                  key: "MB_DB_CONNECTION_URI"
+                  name: "metabase-config"
